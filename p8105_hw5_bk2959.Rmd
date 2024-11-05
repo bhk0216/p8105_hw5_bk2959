@@ -4,6 +4,24 @@ author: "Stella Koo"
 date: "2024-11-04"
 output: github_document
 ---
+## Problem 1
+### Birthday Problem
+```{r}
+birthday_problem = function(n) {
+  
+  birthdays = sample(1:365, n, replace = TRUE)
+  
+  if (length(birthdays) != length(unique(birthdays))) {
+    return(TRUE)  
+  } else {
+    return(FALSE)
+  }
+}
+```
+
+```{r}
+birthday_problem(15)
+```
 
 ## Problem 2
 ### Simulation: One-Sample T-test
@@ -85,4 +103,6 @@ mu_results_plot
 ```
 
 When the true mean exceeds 4, the sample average of µ^ across tests that reject the null hypothesis closely approximates the actual true value of µ. In contrast, for true means less than 4, this sample average of µ^ does not match the true value of µ. This observed pattern arises because, when the true mean is greater than 4, both the statistical power and effect size are substantially high, nearing 1.
+
+## Problem 3
 
