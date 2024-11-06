@@ -105,4 +105,75 @@ mu_results_plot
 When the true mean exceeds 4, the sample average of µ^ across tests that reject the null hypothesis closely approximates the actual true value of µ. In contrast, for true means less than 4, this sample average of µ^ does not match the true value of µ. This observed pattern arises because, when the true mean is greater than 4, both the statistical power and effect size are substantially high, nearing 1.
 
 ## Problem 3
+### Raw Dataset
+```{r message = FALSE}
+homicide_df = read_csv("./homicide-data.csv") |>
+  janitor::clean_names()
+```
 
+The dataset consists of `r nrow(homicide_df)` rows and `r ncol(homicide_df)` providing comprehensive information on homicide incidents across 50 large U.S. cities. Each observation includes essential victim characteristics, such as race, age, and gender. Additionally, each entry contains critical details about the circumstances of the homicide, including the incident date, geographic location (city and state), latitude and longitude coordinates, and the outcome of each incident, indicating whether the case was closed with or without an arrest.
+
+### Data Cleaning
+```{r}
+homicide_df = homicide_df |>
+  mutate(city_state = str_c(city, state, sep = ", ")) |> 
+  group_by(city_state) |>
+  summarize(total_homicides = n(),
+            unsolved_homicides = sum(disposition %in% c("Closed without arrest", "Open/No arrest")),
+            .groups = 'drop') |>
+  filter(city_state != "Tulsa, AL") 
+  
+homicide_df
+```
+The raw data was further processed to add a `city_state` variable (e.g. “Baltimore, MD”). The dataset was then aggregated by city to calculate the total number of homicides and the number of unsolved homicides (classified as either `Closed without arrest` or `Open/No arrest`). 
+
+The observation for Tulsa, AL was excluded from the analysis, as Tulsa is actually located in Oklahoma (OK), not Alabama (AL). This appeared to be a data entry error, which could lead to discrepancies in the upcoming analysis.
+
+### Baltimore, MD
+```{r}
+baltimore_unsolved = homicide_df |>
+  filter(city_state == "Baltimore, MD")
+
+unsolved_count = pull(baltimore_unsolved, unsolved_homicides)
+total_count = pull(baltimore_unsolved, total_homicides)
+
+prop_test = prop.test(unsolved_count, total_count)
+
+tidy_results = broom::tidy(prop_test)
+
+estimate_prop = tidy_results$estimate
+lower_ci = tidy_results$conf.low
+upper_ci = tidy_results$conf.high
+```
+For the city of Baltimore, MD, a proportion test was conducted to estimate the proportion of unsolved homicides, yielding the following results:
+
+* Estimated proportion: `r round(estimate_prop, 4)`
+* Confidence intervals: [`r round(lower_ci, 4)`, `r round(upper_ci, 4)`]
+
+### Proportion Test for All Cities
+The following dataset and plot present the estimated proportions of unsolved homicides and their corresponding confidence intervals for 50 U.S. cities:
+```{r warning = FALSE}
+all_prop_test = homicide_df |>
+  mutate(prop_test = purrr::map2(unsolved_homicides, total_homicides, ~prop.test(x = .x, n = .y)),
+         tidy_result = purrr::map(prop_test, broom::tidy)) |>
+  unnest(tidy_result) |>
+  select(city_state, estimate, conf.low, conf.high)
+  
+all_prop_test
+```
+
+```{r}
+estimate_plot = all_prop_test |>
+  mutate(city_state = fct_reorder(city_state, estimate)) |>
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  labs(x = "City, State", 
+       y = "Estimated Proportion of Unsolved Homicides",
+       title = "Estimated Proportion of Unsolved Homicides with Confidence Intervals") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+estimate_plot
+```
+
+This plot displays the estimated proportion of unsolved homicides in each city, with the length of the error bars representing the confidence intervals. 
